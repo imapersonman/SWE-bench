@@ -59,7 +59,7 @@ import requests
 import time
 import docker.models.containers
 from websocket import WebSocketConnectionClosedException, create_connection
-def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str, logger) -> str | None:
+def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str, logger) -> str:
     """
     Runs OpenInterpreter inside the given docker container, then returns the generated diff.
     Could skip running the container and return None if we don't want to genate anything.
@@ -281,21 +281,14 @@ def run_instance(
     # Run the instance
     container = None
 
-    try:
-        logger.info(f"Generating diff in OI Container for {instance_id}")
-        generated_diff = generate_diff(test_spec, client, run_id, logger)
-        logger.info("============= DIFF =============")
-        logger.info(generated_diff)
-        logger.info("=========== END DIFF ===========")
-        if generated_diff is not None:
-            logger.info(f"OI generated diff for is not None -- using generated diff")
-            print(f"OI generated diff for is not None -- using generated diff")
-            pred["model_patch"] = generated_diff
-        else:
-            print(f"OI generated diff for {instance_id} is None -- using provided diff")
-    finally:
-        # cleanup_container(client, diff_container, logger)
-        ...
+    logger.info(f"Generating diff in OI Container for {instance_id}")
+    generated_diff = generate_diff(test_spec, client, run_id, logger)
+    logger.info("============= DIFF =============")
+    logger.info(generated_diff)
+    logger.info("=========== END DIFF ===========")
+    logger.info(f"OI generated diff for is not None -- using generated diff")
+    print(f"OI generated diff for is not None -- using generated diff")
+    pred["model_patch"] = generated_diff
 
     try:
         # Build + start instance container (instance image should already be built)
@@ -554,7 +547,8 @@ def get_dataset_from_preds(
         print(f"{len(completed_ids)} instances already run, skipping...")
         dataset = [i for i in dataset if i[KEY_INSTANCE_ID] not in completed_ids]
 
-    empty_patch_ids = {k for k, v in predictions.items() if v["model_patch"] == "" or v["model_patch"] is None}
+    # empty_patch_ids = {k for k, v in predictions.items() if v["model_patch"] == "" or v["model_patch"] is None}
+    empty_patch_ids = {}
 
     # filter dataset to only instances with predictions
     dataset = [i for i in dataset if i[KEY_INSTANCE_ID] in prediction_ids and i[KEY_INSTANCE_ID] not in empty_patch_ids]
