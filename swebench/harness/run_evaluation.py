@@ -226,7 +226,6 @@ def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str,
             diff = ""
     finally:
         print("cleaning up container!")
-        print("(not actually deleting it though)")
         if container is not None:
             container.kill()
             cleanup_container(client, container, logger)
