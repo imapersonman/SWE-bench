@@ -486,7 +486,8 @@ def build_container(
         run_id: str,
         logger: logging.Logger,
         nocache: bool,
-        force_rebuild: bool = False
+        force_rebuild: bool = False,
+        **kwargs,
     ):
     """
     Builds the instance image for the given test spec and creates a container from the image.
@@ -498,6 +499,7 @@ def build_container(
         logger (logging.Logger): Logger to use for logging the build process
         nocache (bool): Whether to use the cache when building
         force_rebuild (bool): Whether to force rebuild the image even if it already exists
+        kwargs (dict): A bunch of stuff to pass through to containers.create
     """
     # Build corresponding instance image
     if force_rebuild:
@@ -521,6 +523,7 @@ def build_container(
             command="tail -f /dev/null",
             nano_cpus=nano_cpus,
             platform=test_spec.platform,
+            **kwargs,
         )
         logger.info(f"Container for {test_spec.instance_id} created: {container.id}")
         return container

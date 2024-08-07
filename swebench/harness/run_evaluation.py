@@ -53,6 +53,187 @@ class EvaluationError(Exception):
         )
 
 
+import os
+import socket
+import requests
+import time
+import docker.models.containers
+from websocket import WebSocketConnectionClosedException, create_connection
+def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str, logger) -> str | None:
+    """
+    Runs OpenInterpreter inside the given docker container, then returns the generated diff.
+    Could skip running the container and return None if we don't want to genate anything.
+
+    Args:
+        test_spec (TestSpec): TestSpec instance
+        container (docker.models.containers.Container): The unstarted docker container to run OI in
+    """
+    container = None
+    try:
+        task = test_spec.instance
+        host = "127.0.0.1"
+        # Find an open port
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", 0))
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            open_port = s.getsockname()[1]
+
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        container = build_container(
+            test_spec,
+            client,
+            f"oi-{run_id}",
+            logger,
+            False,
+            False,
+            ports={'8000/tcp': (host, open_port)},
+            environment={
+                "OPENAI_API_KEY": openai_api_key,
+                "INTERPRETER_INSECURE_ROUTES": "True",
+                "HOST": "0.0.0.0",
+            },
+        )
+
+        print("generating the diff!")
+        container.start()
+        # Install OI
+        oi_package = "open-interpreter[server] @ git+https://github.com/OpenInterpreter/open-interpreter.git"
+        print("installing oi...")
+        container.exec_run(
+            f"pip install '{oi_package}'",
+            workdir="/testbed",
+            user="root",
+        )
+        print("installed!")
+        container.exec_run(
+            "/bin/bash -c 'echo TRYING_TO_START_SERVER 1> /proc/1/fd/1 2> /proc/1/fd/2'",
+        )
+        # Start Server
+        container.exec_run(
+            "/bin/bash -c 'interpreter --server 1> /proc/1/fd/1 2> /proc/1/fd/2'",
+            workdir="/testbed",
+            user="root",
+            detach=True,
+        )
+        container.exec_run(
+            "/bin/bash -c 'interpreter --server 1> /proc/1/fd/1 2> /proc/1/fd/2'",
+            workdir="/testbed",
+            user="root",
+            detach=True,
+        )
+
+        ### Wait for the server to be ready
+        MAX_CONN_RETRY = 10
+        connection_exception = None
+        uri = f"http://{host}:{open_port}/heartbeat"
+        for retries in range(MAX_CONN_RETRY):
+            try:
+                response = requests.get(uri)
+                assert response.ok and response.json().get('status') == 'alive'
+                print("Server ready.")
+                connection_exception = None
+                break
+            except Exception as e:
+                print(e)
+                print(f"Failed to find {uri} {retries}/{MAX_CONN_RETRY} times.  Retrying...")
+                time.sleep(1)
+                connection_exception = e
+
+        if connection_exception is not None:
+            print(f"Failed connecting to http://{host}:{open_port}/heartbeat too many times -- giving up")
+            raise connection_exception
+
+        ### Set settings
+        settings = {
+            "auto_run": True,
+            "llm": {"api_key": "secret-dapp-key", "api_base": "https://api.openinterpreter.com/v0/"}
+        }
+        response = requests.post(f"http://{host}:{open_port}/settings", json=settings)
+        assert response.status_code == 200, "Failed to set settings"
+
+        repo = test_spec.repo
+
+        # Ask the question
+        prompt = f"""
+    We're at the root of a repo called {repo.split("/")[-1]}. Our cwd is the root of the repo I need your help with. I need your help solving a github issue.
+
+    ---
+    {task['problem_statement']}
+    ---
+
+    Please create a python file to test the problem / reproduce the bug. THEN try to fix it, THEN try to run the test. Keep doing this in a loop until it's fixed.
+
+    After you do something, verify that you've done it. Use `assert` ALL THE TIME.
+
+    Only once your first bug-reproducing test has passed, may you stop. **You may not ask me any clarifying questions.**
+
+    First, make a plan that includes what I said. Good luck! You can do this!
+
+        """.strip()
+
+        websocket = create_connection(f"ws://{host}:{open_port}")
+
+        print("sending auth")
+
+        websocket.send(json.dumps({'auth': 'dummy-api-key'}))
+
+        print("sending prompt")
+
+        # Send a message
+        websocket.send(json.dumps({"role": "user", "type": "message", "start": True}))
+        websocket.send(json.dumps({"role": "user", "type": "message", "content": prompt}))
+        websocket.send(json.dumps({"role": "user", "type": "message", "end": True}))
+
+        print("sent prompt!")
+
+        ### Define run_code
+        def run_code(language, code) -> str:
+
+            payload = {"language": language, "code": code}
+            response = requests.post(f"http://{host}:{open_port}/run", json=payload)
+            assert response.status_code == 200, "Failed to run code"
+
+            output = response.json()
+
+            # We expect output to look something like
+            # {"output": [{"content": <str>, ...}, ...]}.
+            assert "output" in output, f"Unrecognized code output from server: {output}"
+            assert isinstance(output["output"], list), f"Code output does not come as a list: {output}"
+            assert len(output["output"]) > 0, f"Code output has no entries: {output}"
+            assert "content" in output["output"][0], f"Code output element has no content: {output}"
+
+            return output["output"][0]["content"]
+
+
+        try:
+            # Receive and process messages
+            while True:
+                message = websocket.recv()  # This line can raise a WebSocketConnectionClosedException
+                data = json.loads(message)
+
+                if data == {"role": "server", "type": "status", "content": "complete"}:
+                    break
+
+            websocket.close()
+
+            # Add all changes to the staging area
+            run_code("shell", "git add .")
+            # Get the git diff of staged changes
+            diff = run_code("shell", "git diff --cached")
+            print("diff:", diff)
+        except WebSocketConnectionClosedException: 
+            print("! Websocket connection closed unexpectedly")
+            diff = ""
+    finally:
+        print("cleaning up container!")
+        print("(not actually deleting it though)")
+        if container is not None:
+            container.kill()
+            cleanup_container(client, container, logger)
+    
+    return diff
+
+
 def run_instance(
         test_spec: TestSpec,
         pred: dict,
@@ -100,9 +281,27 @@ def run_instance(
 
     # Run the instance
     container = None
+
+    try:
+        logger.info(f"Generating diff in OI Container for {instance_id}")
+        generated_diff = generate_diff(test_spec, client, run_id, logger)
+        logger.info("============= DIFF =============")
+        logger.info(generated_diff)
+        logger.info("=========== END DIFF ===========")
+        if generated_diff is not None:
+            logger.info(f"OI generated diff for is not None -- using generated diff")
+            print(f"OI generated diff for is not None -- using generated diff")
+            pred["model_patch"] = generated_diff
+        else:
+            print(f"OI generated diff for {instance_id} is None -- using provided diff")
+    finally:
+        # cleanup_container(client, diff_container, logger)
+        ...
+
     try:
         # Build + start instance container (instance image should already be built)
         container = build_container(test_spec, client, run_id, logger, rm_image, force_rebuild)
+
         container.start()
         logger.info(f"Container for {instance_id} started: {container.id}")
 

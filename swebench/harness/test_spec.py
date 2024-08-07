@@ -43,6 +43,7 @@ class TestSpec:
     arch: str
     FAIL_TO_PASS: list[str]
     PASS_TO_PASS: list[str]
+    instance: SWEbenchInstance
 
     @property
     def setup_env_script(self):
@@ -300,4 +301,5 @@ def make_test_spec(instance: SWEbenchInstance) -> TestSpec:
         arch=arch,
         FAIL_TO_PASS=fail_to_pass,
         PASS_TO_PASS=pass_to_pass,
+        instance=instance,
     )

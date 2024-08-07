@@ -40,6 +40,7 @@ setuptools.setup(
         'rich',
         'unidiff',
         'tqdm',
+        'websocket-client',
     ],
     extras_require={
         'inference': [
