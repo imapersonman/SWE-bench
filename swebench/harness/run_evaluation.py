@@ -447,40 +447,42 @@ def run_instances(
 
     # run instances in parallel
     print(f"Running {len(instances)} instances...")
-    print("(making sure I'm actually getting updates over) 4")
-    with tqdm(total=len(instances), smoothing=0) as pbar:
-        print("Created tqdm thing")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Create a future for running each instance
-            print("Created ThreadPoolExecutor")
-            futures = {
-                executor.submit(
-                    run_instance,
-                    test_spec,
-                    predictions[test_spec.instance_id],
-                    should_remove(
-                        test_spec.instance_image_key,
-                        cache_level,
-                        clean,
-                        existing_images,
-                    ),
-                    force_rebuild,
-                    client,
-                    run_id,
-                    timeout,
-                ): None
-                for test_spec in test_specs
-            }
-            print("Waiting for futures")
-            # Wait for each future to complete
-            for future in as_completed(futures):
-                pbar.update(1)
-                try:
-                    # Update progress bar, check if instance ran successfully
-                    future.result()
-                except Exception as e:
-                    traceback.print_exc()
-                    continue
+    print("(making sure I'm actually getting updates over) 5")
+    n_completed = 0
+    total = len(instances)
+    print("Created tqdm thing")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create a future for running each instance
+        print("Created ThreadPoolExecutor")
+        futures = {
+            executor.submit(
+                run_instance,
+                test_spec,
+                predictions[test_spec.instance_id],
+                should_remove(
+                    test_spec.instance_image_key,
+                    cache_level,
+                    clean,
+                    existing_images,
+                ),
+                force_rebuild,
+                client,
+                run_id,
+                timeout,
+            ): None
+            for test_spec in test_specs
+        }
+        print("Waiting for futures")
+        # Wait for each future to complete
+        for future in as_completed(futures):
+            n_completed += 1
+            print(f"Finished {n_completed}/{total} instances!")
+            try:
+                # Update progress bar, check if instance ran successfully
+                future.result()
+            except Exception as e:
+                traceback.print_exc()
+                continue
     print("All instances run.")
 
 
