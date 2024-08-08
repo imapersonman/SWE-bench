@@ -452,7 +452,7 @@ def run_instances(
 
     # run instances in parallel
     print(f"Running {len(instances)} instances...")
-    print("(making sure I'm actually getting updates over) 2")
+    print("(making sure I'm actually getting updates over) 3")
     with tqdm(total=len(instances), smoothing=0) as pbar:
         print("Created tqdm thing")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
