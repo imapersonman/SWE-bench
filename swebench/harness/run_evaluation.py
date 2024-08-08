@@ -282,13 +282,13 @@ def run_instance(
     container = None
 
     print(f"{test_spec.instance_id}: generating diff")
-    # logger.info(f"Generating diff in OI Container for {instance_id}")
+    logger.info(f"Generating diff in OI Container for {instance_id}")
     generated_diff = generate_diff(test_spec, client, run_id, logger)
-    # logger.info("============= DIFF =============")
-    # logger.info(generated_diff)
-    # logger.info("=========== END DIFF ===========")
-    # logger.info(f"OI generated diff for is not None -- using generated diff")
-    # print(f"OI generated diff for is not None -- using generated diff")
+    logger.info("============= DIFF =============")
+    logger.info(generated_diff)
+    logger.info("=========== END DIFF ===========")
+    logger.info(f"OI generated diff for is not None -- using generated diff")
+    print(f"OI generated diff for is not None -- using generated diff")
     pred["model_patch"] = generated_diff
 
     try:
