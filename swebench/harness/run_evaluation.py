@@ -254,11 +254,14 @@ def run_instance(
         run_id (str): Run ID
         timeout (int): Timeout for running tests
     """
+    print(f"Running instance {test_spec.instance_id}")
     # Set up logging directory
     instance_id = test_spec.instance_id
     model_name_or_path = pred.get("model_name_or_path", "None").replace("/", "__")
     log_dir = RUN_EVALUATION_LOG_DIR / run_id / model_name_or_path / instance_id
     log_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"{test_spec.instance_id}: linking build dir in log dir")
 
     # Link the image build dir in the log dir
     build_dir = INSTANCE_IMAGE_BUILD_DIR / test_spec.instance_image_key.replace(":", "__")
@@ -272,6 +275,8 @@ def run_instance(
             pass
     log_file = log_dir / "run_instance.log"
 
+    print(f"{test_spec.instance_id}: setting up report file and logging")
+
     # Set up report file + logger
     report_path = log_dir / "report.json"
     if report_path.exists():
@@ -281,6 +286,7 @@ def run_instance(
     # Run the instance
     container = None
 
+    print(f"{test_spec.instance_id}: generating diff")
     logger.info(f"Generating diff in OI Container for {instance_id}")
     generated_diff = generate_diff(test_spec, client, run_id, logger)
     logger.info("============= DIFF =============")
