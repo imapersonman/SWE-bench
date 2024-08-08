@@ -78,8 +78,8 @@ def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str,
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             open_port = s.getsockname()[1]
 
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        assert openai_api_key is not None
+        # openai_api_key = os.getenv("OPENAI_API_KEY")
+        # assert openai_api_key is not None
         container = build_container(
             test_spec,
             client,
@@ -89,7 +89,7 @@ def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str,
             False,
             ports={'8000/tcp': (host, open_port)},
             environment={
-                "OPENAI_API_KEY": openai_api_key,
+                # "OPENAI_API_KEY": openai_api_key,
                 "INTERPRETER_INSECURE_ROUTES": "True",
                 "HOST": "0.0.0.0",
             },
@@ -141,7 +141,7 @@ def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str,
         ### Set settings
         settings = {
             "auto_run": True,
-            "llm": {"api_key": "secret-dapp-key", "api_base": "https://api.openinterpreter.com/v0/"}
+            "llm": {"api_key": "secret-benchmarks-key", "api_base": "https://api.openinterpreter.com/v0/"}
         }
         response = requests.post(f"http://{host}:{open_port}/settings", json=settings)
         assert response.status_code == 200, "Failed to set settings"
@@ -447,7 +447,7 @@ def run_instances(
 
     # run instances in parallel
     print(f"Running {len(instances)} instances...")
-    print("(making sure I'm actually getting updates over) 5")
+    print("(making sure I'm actually getting updates over) 6")
     n_completed = 0
     total = len(instances)
     print("Created tqdm thing")
