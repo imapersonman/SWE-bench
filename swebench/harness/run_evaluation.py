@@ -455,6 +455,7 @@ def run_instances(
     with tqdm(total=len(instances), smoothing=0) as pbar:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Create a future for running each instance
+            print("Created ThreadPoolExecutor")
             futures = {
                 executor.submit(
                     run_instance,
@@ -473,6 +474,7 @@ def run_instances(
                 ): None
                 for test_spec in test_specs
             }
+            print("Waiting for futures")
             # Wait for each future to complete
             for future in as_completed(futures):
                 pbar.update(1)
