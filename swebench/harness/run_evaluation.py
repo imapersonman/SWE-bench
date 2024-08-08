@@ -79,6 +79,7 @@ def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str,
             open_port = s.getsockname()[1]
 
         openai_api_key = os.getenv("OPENAI_API_KEY")
+        assert openai_api_key is not None
         container = build_container(
             test_spec,
             client,
@@ -109,12 +110,6 @@ def generate_diff(test_spec: TestSpec, client: docker.DockerClient, run_id: str,
             "/bin/bash -c 'echo TRYING_TO_START_SERVER 1> /proc/1/fd/1 2> /proc/1/fd/2'",
         )
         # Start Server
-        container.exec_run(
-            "/bin/bash -c 'interpreter --server 1> /proc/1/fd/1 2> /proc/1/fd/2'",
-            workdir="/testbed",
-            user="root",
-            detach=True,
-        )
         container.exec_run(
             "/bin/bash -c 'interpreter --server 1> /proc/1/fd/1 2> /proc/1/fd/2'",
             workdir="/testbed",
@@ -452,7 +447,7 @@ def run_instances(
 
     # run instances in parallel
     print(f"Running {len(instances)} instances...")
-    print("(making sure I'm actually getting updates over) 3")
+    print("(making sure I'm actually getting updates over) 4")
     with tqdm(total=len(instances), smoothing=0) as pbar:
         print("Created tqdm thing")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
