@@ -281,15 +281,15 @@ def run_instance(
     # Run the instance
     container = None
 
-    # print(f"{test_spec.instance_id}: generating diff")
+    print(f"{test_spec.instance_id}: generating diff")
     # logger.info(f"Generating diff in OI Container for {instance_id}")
-    # generated_diff = generate_diff(test_spec, client, run_id, logger)
+    generated_diff = generate_diff(test_spec, client, run_id, logger)
     # logger.info("============= DIFF =============")
     # logger.info(generated_diff)
     # logger.info("=========== END DIFF ===========")
     # logger.info(f"OI generated diff for is not None -- using generated diff")
     # print(f"OI generated diff for is not None -- using generated diff")
-    # pred["model_patch"] = generated_diff
+    pred["model_patch"] = generated_diff
 
     try:
         # Build + start instance container (instance image should already be built)
@@ -447,7 +447,7 @@ def run_instances(
 
     # run instances in parallel
     print(f"Running {len(instances)} instances...")
-    print("(making sure I'm actually getting updates over) version: 7")
+    print("(making sure I'm actually getting updates over) version: 8")
     n_completed = 0
     total = len(instances)
     print("Created tqdm thing")
