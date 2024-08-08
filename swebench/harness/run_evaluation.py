@@ -741,7 +741,9 @@ def main(
         print("No instances to run.")
     else:
         # build environment images + run instances
+        print("build_env_images")
         build_env_images(client, dataset, force_rebuild, max_workers)
+        print("run_instances")
         run_instances(predictions, dataset, cache_level, clean, force_rebuild, max_workers, run_id, timeout)
 
     # clean images + make final report
