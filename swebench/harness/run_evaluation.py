@@ -447,7 +447,7 @@ def run_instances(
 
     # run instances in parallel
     print(f"Running {len(instances)} instances...")
-    print("(making sure I'm actually getting updates over) version: 8")
+    print("(making sure I'm actually getting updates over) version: 9")
     n_completed = 0
     total = len(instances)
     print("Created tqdm thing")
@@ -727,6 +727,7 @@ def main(
                 predictions = [json.loads(line) for line in f]
         else:
             raise ValueError("Predictions path must be \"gold\", .json, or .jsonl")
+    print("predictions", predictions)
     predictions = {pred[KEY_INSTANCE_ID]: pred for pred in predictions}
 
     # get dataset from predictions
