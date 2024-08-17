@@ -48,24 +48,26 @@ def get_logs_eval(log_fp: str) -> tuple[dict[str, str], bool]:
     repo = "-".join(sample_id.replace("__", "/").split("-")[:-1])  # e.g. scikit-learn/scikit-learn
     log_parser = MAP_REPO_TO_PARSER[repo]
 
+    print("fail check version: 0")
     with open(log_fp) as f:
         content = f.read()
         # TODO fix constant here
+        fail_arr =  [
+            x in content
+            for x in [
+                APPLY_PATCH_FAIL,
+                RESET_FAILED,
+                TESTS_ERROR,
+                TESTS_TIMEOUT,
+                "Failed to reset task environment",
+            ]
+        ]
         if (
-            any(
-                [
-                    x in content
-                    for x in [
-                        APPLY_PATCH_FAIL,
-                        RESET_FAILED,
-                        TESTS_ERROR,
-                        TESTS_TIMEOUT,
-                        "Failed to reset task environment",
-                    ]
-                ]
-            )
+            any(fail_arr)
             or "applied patch" not in content.lower()
         ):
+            print("fail_arr:", fail_arr)
+            print("applied patch not in content:", "applied patch" not in content.lower())
             # Eval patch was not applied successfully
             return {}, False
 
